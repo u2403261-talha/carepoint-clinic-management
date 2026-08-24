@@ -3,6 +3,9 @@ import express from 'express';
 import { app } from '../../server.ts';
 
 const wrapper = express();
-wrapper.use('/.netlify/functions/api', app);
+
+// Change from '/.netlify/functions/api' to a wildcard root fallback
+wrapper.use('*', app);
 
 export const handler = serverless(wrapper);
+
