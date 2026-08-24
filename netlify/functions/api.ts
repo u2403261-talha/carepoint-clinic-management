@@ -1,24 +1,19 @@
 import serverless from 'serverless-http';
 import express, { Request, Response, NextFunction } from 'express';
-import * as admin from 'firebase-admin';
+import { adminAuth } from '../../src/lib/firebase-admin';
 import { db } from '../../src/db'; // Double check this path points to your database instance
 import { doctors, users } from '../../src/db/schema'; // Double check this path points to your database schema
 import { eq } from 'drizzle-orm';
 
 // 1. Initialize Firebase Admin SDK safely for Serverless
-if (!admin.apps.length) {
-  admin.initializeApp({
-    // Netlify pulls this from your Site Configuration Environment Variables
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID
-  });
-}
+
 
 const app = express();
 app.use(express.json());
 
 // 2. Extend standard Express Request interface to safely type req.user
 interface AuthRequest extends Request {
-  user?: admin.auth.DecodedIdToken;
+  user?: any;
 }
 
 // 3. Real Authentication Middleware
@@ -34,7 +29,7 @@ const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction) 
     const token = authHeader.split(' ')[1];
     
     // Verify the token using Firebase Admin SDK
-    const decodedToken = await admin.auth().verifyIdToken(token);
+   const decodedToken = await adminAuth.verifyIdToken(token);
     
     // Inject the decoded token payload (including uid, email) into the request object
     req.user = decodedToken;
@@ -66,7 +61,7 @@ app.post('/api/auth/sync', requireAuth, async (req: AuthRequest, res: Response) 
     // Database Lookup: Get or Create User with explicit catch
     let existingUser;
     try {
-      existingUser = await db.select().from(users).where(eq(users.id, uid)).limit(1);
+      existingUser = await db.select().from(users).where(eq(users.uid, uid)).limit(1);
     } catch (dbError: any) {
       console.error(" NeonDB Query Failed immediately:", dbError.message);
       return res.status(502).json({ 
@@ -80,11 +75,11 @@ app.post('/api/auth/sync', requireAuth, async (req: AuthRequest, res: Response) 
     if (existingUser.length === 0) {
       try {
         const newUser = await db.insert(users).values({
-          id: uid,
-          email: email,
-          name: name,
-          role: role,
-        }).returning();
+  uid: uid,
+  email: email,
+  name: name,
+  role: role,
+}).returning();
         userRecord = newUser[0];
       } catch (insertError: any) {
         console.error("Failed to insert user records:", insertError.message);
