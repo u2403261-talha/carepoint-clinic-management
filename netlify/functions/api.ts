@@ -47,34 +47,53 @@ const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction) 
 };
 
 // 4. Main Authentication Sync Route
+// 4. Main Authentication Sync Route
 app.post('/api/auth/sync', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    // req.user is guaranteed to be populated now by the middleware
     const uid = req.user!.uid;
     const email = req.user!.email || '';
     const name = req.user!.name || req.body.name || 'Unknown User';
     const role = req.body.role || 'USER'; 
     const doctorData = req.body.doctorData;
 
-    // Database Lookup: Get or Create User
-    let existingUser = await db.select().from(users).where(eq(users.id, uid)).limit(1);
-    let userRecord;
+    console.log(`Attempting connection to NeonDB for user: ${uid}`);
+
+    // Test if db instance exists
+    if (!db) {
+      throw new Error("Database instance configuration is uninitialized or missing.");
+    }
+
+    // Database Lookup: Get or Create User with explicit catch
+    let existingUser;
+    try {
+      existingUser = await db.select().from(users).where(eq(users.id, uid)).limit(1);
+    } catch (dbError: any) {
+      console.error(" NeonDB Query Failed immediately:", dbError.message);
+      return res.status(502).json({ 
+        error: 'Database connection failed. Verify Netlify Environment variables.',
+        details: dbError.message 
+      });
+    }
+    
+    let userRecord = existingUser[0];
 
     if (existingUser.length === 0) {
-      // Create user if they don't exist in your SQL database yet
-      const newUser = await db.insert(users).values({
-        id: uid,
-        email: email,
-        name: name,
-        role: role,
-      }).returning();
-      userRecord = newUser[0];
-    } else {
-      userRecord = existingUser[0];
+      try {
+        const newUser = await db.insert(users).values({
+          id: uid,
+          email: email,
+          name: name,
+          role: role,
+        }).returning();
+        userRecord = newUser[0];
+      } catch (insertError: any) {
+        console.error("Failed to insert user records:", insertError.message);
+        return res.status(500).json({ error: 'Database record instantiation failed.' });
+      }
     }
 
     // Role Specific logic: Handle Doctor registration sync
-    if (userRecord.role === 'DOCTOR' && doctorData) {
+    if (userRecord && userRecord.role === 'DOCTOR' && doctorData) {
       const existingDoc = await db.select().from(doctors).where(eq(doctors.userId, userRecord.id)).limit(1);
       if (existingDoc.length === 0) {
         await db.insert(doctors).values({
@@ -88,13 +107,13 @@ app.post('/api/auth/sync', requireAuth, async (req: AuthRequest, res: Response) 
       }
     }
 
-    // Send successful user profile data back to the admin dashboard
-    res.json(userRecord);
+    res.json(userRecord || { id: uid, role, name, email });
   } catch (error: any) {
-    console.error('Error syncing user inside database:', error);
-    res.status(500).json({ error: 'Failed to sync user data' });
+    console.error('General sync route failure:', error);
+    res.status(500).json({ error: 'Failed to sync user data smoothly' });
   }
 });
+
 
 // Fallback catch-all route handler
 app.use('*', (req: Request, res: Response) => {
