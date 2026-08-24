@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /feedback/{document=**} {
+      // Anyone authenticated can create feedback
+      allow create: if request.auth != null;
+      // Only admins could read it in theory, but let's just allow read if needed (though app might not even read it)
+      allow read: if request.auth != null;
+      allow update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

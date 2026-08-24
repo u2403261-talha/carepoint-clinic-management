@@ -1,0 +1,6 @@
+{
+  "name": "CarePoint Clinic Management",
+  "description": "A full-stack clinic appointment and management platform for patients, doctors, and administrators.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
