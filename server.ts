@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
 import { db } from './src/db/index.ts';
 import { users, doctors, departments, appointments, prescriptions, deletedAccounts } from './src/db/schema.ts';
@@ -720,6 +719,7 @@ async function startServer() {
   if (process.env.NETLIFY || process.env.LAMBDA_TASK_ROOT) return;
   const PORT = 3000;
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
