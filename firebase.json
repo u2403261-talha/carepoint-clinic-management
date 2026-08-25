@@ -1,0 +1,10 @@
+{
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "CarePoint",
+        "supportEmail": "rafiqtalha5@gmail.com"
+      }
+    }
+  }
+}
